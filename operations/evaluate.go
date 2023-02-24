@@ -25,7 +25,7 @@ func EvaluateBuild(root, target string) error {
 		return fmt.Errorf("could not read go module name: %w", errName)
 	}
 
-	packageReader := info.NewPackageReader(reader, opener)
+	packageReader := info.NewPackageReader(reader, opener, info.Config{})
 	packages, errRead := packageReader.ReadRecursively(root, moduleName)
 	if errRead != nil {
 		return fmt.Errorf("could not read packages: %w", errRead)

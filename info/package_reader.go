@@ -16,6 +16,7 @@ type (
 	PackageReader struct {
 		fileOpener FileOpener
 		dirReader  DirReader
+		config     Config
 	}
 
 	FileOpener interface {
@@ -27,10 +28,11 @@ type (
 	}
 )
 
-func NewPackageReader(dirReader DirReader, fileOpener FileOpener) PackageReader {
+func NewPackageReader(dirReader DirReader, fileOpener FileOpener, cfg Config) PackageReader {
 	return PackageReader{
 		dirReader:  dirReader,
 		fileOpener: fileOpener,
+		config:     cfg,
 	}
 }
 
@@ -42,11 +44,11 @@ func (r PackageReader) ReadRecursively(root, moduleName string) ([]PackageInfo, 
 
 	dirs := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if entry.IsDir() == false {
+		if entry.IsDir() == false || r.config.IgnoredDirs.Contains(entry.Name()) {
 			continue
 		}
 
-		dirs = append(dirs, filepath.Join(root, entry.Name()))
+		dirs = append(dirs, entry.Name())
 	}
 
 	result, errRead := r.readSubDirsRecursively(root, moduleName, dirs)
@@ -95,12 +97,12 @@ func (r PackageReader) readSubDirRecursively(root, moduleName, subDir string) ([
 	for dirsStack.Size() > 0 {
 		dir := dirsStack.Pop()
 
-		entries, errRead := r.dirReader.Read(dir)
+		entries, errRead := r.dirReader.Read(filepath.Join(root, dir))
 		if errRead != nil {
 			return nil, fmt.Errorf("could not read dir: %w", errRead)
 		}
 
-		sourceFiles := processEntries(dir, entries, dirsStack)
+		sourceFiles := r.processEntries(dir, entries, dirsStack)
 		if len(sourceFiles) == 0 {
 			continue
 		}
@@ -119,10 +121,9 @@ func (r PackageReader) readSubDirRecursively(root, moduleName, subDir string) ([
 func (r PackageReader) readPackage(root, dir, moduleName string, sourceFiles []string) (PackageInfo, error) {
 	dependencies := make(map[string]struct{}, 0)
 	containsTests := false
-	pkgPath, _ := filepath.Rel(root, dir)
 
 	for _, filePath := range sourceFiles {
-		file, errRead := r.fileOpener.OpenRead(filePath)
+		file, errRead := r.fileOpener.OpenRead(filepath.Join(root, filePath))
 		if errRead != nil {
 			return PackageInfo{}, fmt.Errorf("could not read source file: %w", errRead)
 		}
@@ -145,7 +146,7 @@ func (r PackageReader) readPackage(root, dir, moduleName string, sourceFiles []s
 			}
 
 			dependency, _ := filepath.Rel(moduleName, impPath)
-			if dependency == pkgPath {
+			if dependency == dir {
 				continue
 			}
 
@@ -154,19 +155,21 @@ func (r PackageReader) readPackage(root, dir, moduleName string, sourceFiles []s
 	}
 
 	return PackageInfo{
-		Path:          pkgPath,
+		Path:          dir,
 		Dependencies:  util.MapKeys(dependencies),
 		ContainsTests: containsTests,
 	}, nil
 }
 
-func processEntries(dirPath string, entries []models.DirEntry, dirsStack *stack.Stack[string]) []string {
+func (r PackageReader) processEntries(dirPath string, entries []models.DirEntry, dirsStack *stack.Stack[string]) []string {
 	sourceFiles := make([]string, 0, len(entries))
 
 	for _, entry := range entries {
 		entryPath := filepath.Join(dirPath, entry.Name())
 		if entry.IsDir() {
-			dirsStack.Push(entryPath)
+			if r.config.IgnoredDirs.Contains(entryPath) == false {
+				dirsStack.Push(entryPath)
+			}
 			continue
 		}
 

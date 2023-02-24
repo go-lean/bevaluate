@@ -11,4 +11,15 @@ type (
 		Dependencies  []string
 		ContainsTests bool
 	}
+
+	Config struct {
+		IgnoredDirs Ignored
+	}
+
+	Ignored map[string]struct{}
 )
+
+func (i Ignored) Contains(path string) bool {
+	_, ok := i[path]
+	return ok
+}

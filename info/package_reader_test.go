@@ -11,7 +11,7 @@ func TestPackageReader_ReadRecursively_DirReaderError(t *testing.T) {
 	dirReader := NewDirReader().CanRead(false)
 
 	opener := NewFileOpener()
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -26,7 +26,7 @@ func TestPackageReader_ReadRecursively_EmptyRootDir(t *testing.T) {
 	dirReader.MockAt("baba", []models.DirEntry{})
 
 	opener := NewFileOpener()
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -44,7 +44,7 @@ func TestPackageReader_ReadRecursively_ExplosiveSubDir_Error(t *testing.T) {
 	})
 
 	opener := NewFileOpener()
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -70,7 +70,7 @@ func TestPackageReader_ReadRecursively_ExplosiveInnerSubDir_Error(t *testing.T) 
 	})
 
 	opener := NewFileOpener()
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -91,7 +91,7 @@ func TestPackageReader_ReadRecursively_EmptySubDir_ShouldBeEmpty(t *testing.T) {
 	dirReader.MockAt("baba/serviceone", []models.DirEntry{})
 
 	opener := NewFileOpener()
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -115,7 +115,7 @@ func TestPackageReader_ReadRecursively_NonSourceFile_ShouldBeEmpty(t *testing.T)
 
 	opener := NewFileOpener()
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -139,13 +139,41 @@ func TestPackageReader_ReadRecursively_NonEmptySubDir_ErrOpen(t *testing.T) {
 
 	opener := NewFileOpener().CanOpen(false)
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
 	require.Error(t, errRead)
 	require.Contains(t, errRead.Error(), "kaboom")
 	require.NotEqual(t, "kaboom", errRead.Error())
+	require.Empty(t, packages)
+}
+
+func TestPackageReader_ReadRecursively_NonEmptyIgnoredSubDir_ShouldBeEmpty(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "serviceone",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+	})
+
+	fakeFile := NewFakeFile("package serviceone").CanClose(false)
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/serviceone/baba.go", fakeFile)
+	cfg := info.Config{IgnoredDirs: map[string]struct{}{"serviceone": {}}}
+
+	r := info.NewPackageReader(dirReader, opener, cfg)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
 	require.Empty(t, packages)
 }
 
@@ -168,7 +196,7 @@ func TestPackageReader_ReadRecursively_NonEmptySubDir_ShouldNotBeEmpty(t *testin
 	opener := NewFileOpener()
 	opener.MockAt("baba/serviceone/baba.go", fakeFile)
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -197,7 +225,7 @@ func TestPackageReader_ReadRecursively_BadGoCodeBeforeImports_Error(t *testing.T
 	opener := NewFileOpener()
 	opener.MockAt("baba/serviceone/baba.go", NewFakeFile("bad go code"))
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -231,7 +259,7 @@ import (
 )
 `))
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -267,7 +295,7 @@ import (
 )
 `))
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -316,7 +344,7 @@ import (
 )
 `))
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -326,6 +354,45 @@ import (
 	require.Len(t, packages[0].Dependencies, 1)
 	require.Equal(t, "common", packages[0].Dependencies[0])
 	require.True(t, packages[0].ContainsTests)
+}
+
+func TestPackageReader_ReadRecursively_InnerIgnoredSubDir_ShouldNotBeEmpty(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "serviceone",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone", []models.DirEntry{
+		DirEntry{
+			name:  "inner",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone/inner", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+		DirEntry{
+			name: "baba_test.go",
+		},
+	})
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/serviceone/inner/baba.go", NewFakeFile("package inner"))
+	opener.MockAt("baba/serviceone/inner/baba_test.go", NewFakeFile(`package inner_test)
+`))
+
+	cfg := info.Config{
+		IgnoredDirs: map[string]struct{}{"serviceone/inner": {}},
+	}
+	r := info.NewPackageReader(dirReader, opener, cfg)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
+	require.Empty(t, packages)
 }
 
 func TestPackageReader_ReadRecursively_InnerSubDir_ShouldNotBeEmpty(t *testing.T) {
@@ -373,7 +440,7 @@ import (
 )
 `))
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 
@@ -402,7 +469,7 @@ func TestPackageReader_ReadRecursively_AllRootFilesAreIgnored(t *testing.T) {
 
 	opener := NewFileOpener()
 
-	r := info.NewPackageReader(dirReader, opener)
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
 

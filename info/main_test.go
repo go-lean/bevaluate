@@ -2,6 +2,7 @@ package info_test
 
 import (
 	"errors"
+	"github.com/go-lean/bevaluate/info"
 	"github.com/go-lean/bevaluate/models"
 	"io"
 	"strings"
@@ -10,6 +11,7 @@ import (
 var (
 	errKaboom      = errors.New("kaboom")
 	testModuleName = "github.com/baba/is/you"
+	emptyConfig    = info.Config{IgnoredDirs: map[string]struct{}{}}
 )
 
 type (
