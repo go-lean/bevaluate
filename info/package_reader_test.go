@@ -34,6 +34,52 @@ func TestPackageReader_ReadRecursively_EmptyRootDir(t *testing.T) {
 	require.Empty(t, packages)
 }
 
+func TestPackageReader_ReadRecursively_ExplosiveSubDir_Error(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "kaboom",
+			isDir: true,
+		},
+	})
+
+	opener := NewFileOpener()
+	r := info.NewPackageReader(dirReader, opener)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.Error(t, errRead)
+	require.Contains(t, errRead.Error(), "kaboom")
+	require.NotEqual(t, "kaboom", errRead.Error())
+	require.Empty(t, packages)
+}
+
+func TestPackageReader_ReadRecursively_ExplosiveInnerSubDir_Error(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "serviceone",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone", []models.DirEntry{
+		DirEntry{
+			name:  "kaboom",
+			isDir: true,
+		},
+	})
+
+	opener := NewFileOpener()
+	r := info.NewPackageReader(dirReader, opener)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.Error(t, errRead)
+	require.Contains(t, errRead.Error(), "kaboom")
+	require.NotEqual(t, "kaboom", errRead.Error())
+	require.Empty(t, packages)
+}
+
 func TestPackageReader_ReadRecursively_EmptySubDir_ShouldBeEmpty(t *testing.T) {
 	dirReader := NewDirReader()
 	dirReader.MockAt("baba", []models.DirEntry{
@@ -132,6 +178,32 @@ func TestPackageReader_ReadRecursively_NonEmptySubDir_ShouldNotBeEmpty(t *testin
 	require.Equal(t, "serviceone", packages[0].Path)
 	require.False(t, packages[0].ContainsTests)
 	require.Empty(t, packages[0].Dependencies)
+}
+
+func TestPackageReader_ReadRecursively_BadGoCodeBeforeImports_Error(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "serviceone",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+	})
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/serviceone/baba.go", NewFakeFile("bad go code"))
+
+	r := info.NewPackageReader(dirReader, opener)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.Error(t, errRead)
+	require.Contains(t, errRead.Error(), "parse")
+	require.Empty(t, packages)
 }
 
 func TestPackageReader_ReadRecursively_NonInternalDependencies_ShouldHaveNoDependencies(t *testing.T) {
@@ -254,4 +326,86 @@ import (
 	require.Len(t, packages[0].Dependencies, 1)
 	require.Equal(t, "common", packages[0].Dependencies[0])
 	require.True(t, packages[0].ContainsTests)
+}
+
+func TestPackageReader_ReadRecursively_InnerSubDir_ShouldNotBeEmpty(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "serviceone",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone", []models.DirEntry{
+		DirEntry{
+			name:  "inner",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/serviceone/inner", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+		DirEntry{
+			name: "baba_test.go",
+		},
+	})
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/serviceone/inner/baba.go", NewFakeFile(`
+package inner
+
+import (
+	"io"
+	"github.com/some/third-party/dependency"
+	"github.com/baba/is/you/common"
+	"github.com/baba/is/you/serviceone"
+)
+`))
+	opener.MockAt("baba/serviceone/inner/baba_test.go", NewFakeFile(`
+package inner
+
+import (
+	"io"
+	"github.com/some/third-party/dependency"
+	"github.com/baba/is/you/serviceone/inner"
+	"github.com/baba/is/you/serviceone"
+)
+`))
+
+	r := info.NewPackageReader(dirReader, opener)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
+	require.Len(t, packages, 1)
+	require.Equal(t, "serviceone/inner", packages[0].Path)
+
+	require.Len(t, packages[0].Dependencies, 2)
+	expected := []string{"serviceone", "common"}
+	require.ElementsMatch(t, expected, packages[0].Dependencies)
+}
+
+func TestPackageReader_ReadRecursively_AllRootFilesAreIgnored(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name: "go.mod",
+		},
+		DirEntry{
+			name: "baba.go",
+		},
+		DirEntry{
+			name: "baba_test.go",
+		},
+	})
+
+	opener := NewFileOpener()
+
+	r := info.NewPackageReader(dirReader, opener)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
+	require.Empty(t, packages)
 }

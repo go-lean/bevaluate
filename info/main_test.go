@@ -74,7 +74,7 @@ func (r *DataMock[T]) Read(path string) T {
 }
 
 func (r *MockedDirReader) Read(path string) ([]models.DirEntry, error) {
-	if r.canRead == false {
+	if r.canRead == false || strings.Contains(path, "kaboom") {
 		return nil, errKaboom
 	}
 
@@ -82,7 +82,7 @@ func (r *MockedDirReader) Read(path string) ([]models.DirEntry, error) {
 }
 
 func (r *MockedFileOpener) OpenRead(path string) (io.ReadCloser, error) {
-	if r.canOpen == false {
+	if r.canOpen == false || strings.Contains(path, "kaboom") {
 		return nil, errKaboom
 	}
 
