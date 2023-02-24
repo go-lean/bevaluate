@@ -21,9 +21,8 @@ func CollectChanges(target string) ([]ChangeInfo, error) {
 			break
 		}
 
-		path := line[2:]
 		result = append(result, ChangeInfo{
-			Path:      path,
+			Path:      line[2:],
 			IsDeleted: line[0] == 'D',
 		})
 	}
