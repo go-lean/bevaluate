@@ -476,3 +476,37 @@ func TestPackageReader_ReadRecursively_AllRootFilesAreIgnored(t *testing.T) {
 	require.NoError(t, errRead)
 	require.Empty(t, packages)
 }
+
+func TestPackageReader_ReadRecursively_NamedImportsAreAlsoRelative(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "service",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/service", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+	})
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/service/baba.go", NewFakeFile(`
+package service
+
+import apps "github.com/baba/is/you/plugins"
+import named "github.com/baba/is/you/service/inner"
+`))
+
+	r := info.NewPackageReader(dirReader, opener, emptyConfig)
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
+	require.Len(t, packages, 1)
+
+	require.Len(t, packages[0].Dependencies, 2)
+	require.Equal(t, "plugins", packages[0].Dependencies[0])
+	require.Equal(t, "service/inner", packages[0].Dependencies[1])
+}
