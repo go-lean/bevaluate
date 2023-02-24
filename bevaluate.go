@@ -3,36 +3,46 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/go-lean/bevaluate/info"
-	"github.com/go-lean/bevaluate/storage"
+	"github.com/go-lean/bevaluate/operations"
 	"os"
-	"path/filepath"
 )
 
 func main() {
-	target := flag.String("target", "origin/master", "target=origin/production")
+	runCMD := flag.NewFlagSet("run", flag.ExitOnError)
+	target := runCMD.String("target", "origin/master", "target=origin/production")
+
+	initCMD := flag.NewFlagSet("init", flag.ExitOnError)
+	defaultSettings := initCMD.Bool("default", false, "init -default")
+
 	flag.Parse()
 
-	changes, err := info.CollectChanges(*target)
-	exitOnError(err, "could not collect changes")
-
-	if len(changes) == 0 {
-		return
+	if len(os.Args) < 2 {
+		fmt.Println("no cmd selected")
+		os.Exit(1)
 	}
 
-	root, err := os.Getwd()
-	exitOnError(err, "could not get working directory")
+	root, errWD := os.Getwd()
+	exitOnError(errWD, "could not get working directory")
 
-	opener := storage.FileOpener{}
-	reader := storage.DirReader{}
-	moduleName, err := storage.ReadModuleName(filepath.Join(root, "go.mod"), opener)
-	exitOnError(err, "could not read go module name")
+	var err error
 
-	packageReader := info.NewPackageReader(reader, opener)
-	packages, err := packageReader.ReadRecursively(root, moduleName)
-	exitOnError(err, "could not read packages")
+	cmd := os.Args[1]
 
-	fmt.Println(packages)
+	switch cmd {
+	case "run":
+		err = operations.EvaluateBuild(root, *target)
+	case "init":
+		if *defaultSettings {
+			err = operations.InitDefault()
+			break
+		}
+		err = operations.Init()
+	default:
+		fmt.Printf("unknown cmd: %q\n", cmd)
+		os.Exit(1)
+	}
+
+	exitOnError(err, "could not execute: "+cmd)
 }
 
 func exitOnError(err error, context string) {
