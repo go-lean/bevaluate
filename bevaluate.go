@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-lean/bevaluate/info"
+	"github.com/go-lean/bevaluate/storage"
 	"os"
+	"path/filepath"
 )
 
 func main() {
@@ -17,6 +19,20 @@ func main() {
 	if len(changes) == 0 {
 		return
 	}
+
+	root, err := os.Getwd()
+	exitOnError(err, "could not get working directory")
+
+	opener := storage.FileOpener{}
+	reader := storage.DirReader{}
+	moduleName, err := storage.ReadModuleName(filepath.Join(root, "go.mod"), opener)
+	exitOnError(err, "could not read go module name")
+
+	packageReader := info.NewPackageReader(reader, opener)
+	packages, err := packageReader.ReadRecursively(root, moduleName)
+	exitOnError(err, "could not read packages")
+
+	fmt.Println(packages)
 }
 
 func exitOnError(err error, context string) {
