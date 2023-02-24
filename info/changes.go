@@ -1,31 +1,40 @@
 package info
 
 import (
-	"fmt"
-	"os/exec"
+	"errors"
 	"strings"
+	"unicode"
 )
 
-func CollectChanges(target string) ([]ChangeInfo, error) {
-	cmd := exec.Command("git", "diff", target, "--name-status")
-	data, errCmd := cmd.Output()
+var (
+	errInvalidChangesFormat = errors.New("invalid changes format")
+)
 
-	if errCmd != nil {
-		return nil, fmt.Errorf("could not execute git diff command")
-	}
-
-	lines := strings.Split(string(data), "\n")
+func ParseGitChanges(changesContent string) ([]ChangeInfo, error) {
+	lines := strings.Split(changesContent, "\n")
 	result := make([]ChangeInfo, 0, len(lines))
 	for _, line := range lines {
 		if line == "" {
 			break
 		}
 
+		if isValidChange(line) == false {
+			return nil, errInvalidChangesFormat
+		}
+
+		path := strings.Trim(line[2:], " ")
+		if path == "" {
+			return nil, errInvalidChangesFormat
+		}
 		result = append(result, ChangeInfo{
-			Path:      line[2:],
+			Path:      path,
 			IsDeleted: line[0] == 'D',
 		})
 	}
 
 	return result, nil
+}
+
+func isValidChange(line string) bool {
+	return len(line) >= 3 && unicode.IsDigit(rune(line[0])) == false && line[1] == '\t'
 }

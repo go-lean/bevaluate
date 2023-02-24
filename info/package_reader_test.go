@@ -507,6 +507,6 @@ import named "github.com/baba/is/you/service/inner"
 	require.Len(t, packages, 1)
 
 	require.Len(t, packages[0].Dependencies, 2)
-	require.Equal(t, "plugins", packages[0].Dependencies[0])
-	require.Equal(t, "service/inner", packages[0].Dependencies[1])
+	expected := []string{"plugins", "service/inner"}
+	require.ElementsMatch(t, expected, packages[0].Dependencies)
 }

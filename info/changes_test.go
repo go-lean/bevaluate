@@ -1,31 +1,55 @@
 package info_test
 
 import (
-	"fmt"
 	"github.com/go-lean/bevaluate/info"
 	"github.com/stretchr/testify/require"
-	"os/exec"
 	"testing"
 )
 
-func TestCollectChanges_BadTarget_Error(t *testing.T) {
-	changes, errCollect := info.CollectChanges("--baba")
-
-	require.Error(t, errCollect)
-	require.Empty(t, changes)
-}
-
-func TestCollectChanges_OK(t *testing.T) {
-	cmd := exec.Command("git", "status")
-	data, errCmd := cmd.Output()
-
-	if errCmd != nil {
-		fmt.Println("git not available")
-		return
+func TestParseGitChanges_BadContent_Error(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "bad content should be invalid",
+			content: "baba is you",
+		},
+		{
+			name:    "empty path content should be invalid",
+			content: "D\t ",
+		},
 	}
 
-	require.NotEmpty(t, data)
-	_, errCollect := info.CollectChanges("master")
+	for _, c := range testCases {
+		t.Run(c.name, func(t *testing.T) {
+			changes, errParse := info.ParseGitChanges(c.content)
 
-	require.NoError(t, errCollect)
+			require.Error(t, errParse)
+			require.Contains(t, errParse.Error(), "invalid")
+			require.Empty(t, changes)
+		})
+	}
+}
+
+func TestParseGitChanges_OK(t *testing.T) {
+	changes, errParse := info.ParseGitChanges("D\tbaba.go\nM\tflag.go")
+	require.NoError(t, errParse)
+	require.Len(t, changes, 2)
+	expected := []info.ChangeInfo{{Path: "baba.go", IsDeleted: true}, {Path: "flag.go"}}
+	require.ElementsMatch(t, expected, changes)
+}
+
+func TestParseGitChanges_EndingWithNewLine_OK(t *testing.T) {
+	changes, errParse := info.ParseGitChanges("D\tbaba.go\nM\tflag.go\n")
+	require.NoError(t, errParse)
+	require.Len(t, changes, 2)
+	expected := []info.ChangeInfo{{Path: "baba.go", IsDeleted: true}, {Path: "flag.go"}}
+	require.ElementsMatch(t, expected, changes)
+}
+
+func TestParseGitChanges_EmptyContent_OK(t *testing.T) {
+	changes, errParse := info.ParseGitChanges("")
+	require.NoError(t, errParse)
+	require.Empty(t, changes)
 }

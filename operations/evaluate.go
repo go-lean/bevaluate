@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 )
 
-func EvaluateBuild(root, target string) error {
-	changes, errChanges := info.CollectChanges(target)
-	if errChanges != nil {
-		return fmt.Errorf("could not collect changes: %w", errChanges)
+func EvaluateBuild(root, changesContent string) error {
+	changes, errParse := info.ParseGitChanges(changesContent)
+	if errParse != nil {
+		return fmt.Errorf("could not parse changes: %w", errParse)
 	}
 
 	if len(changes) == 0 {
