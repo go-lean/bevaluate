@@ -3,13 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/go-lean/bevaluate/config"
 	"github.com/go-lean/bevaluate/operations"
+	"gopkg.in/yaml.v3"
 	"os"
+	"path/filepath"
 )
 
 const (
 	exitCodeGeneralError = iota + 1
 	exitCodeNoCmdSelected
+	exitCodeConfig
 	exitCodeInvalidArgs
 	exitCodeIOError
 )
@@ -27,8 +31,15 @@ func main() {
 	root, errWD := os.Getwd()
 	exitOnError(errWD, "could not get working directory", exitCodeIOError)
 
-	var err error
+	cfg := config.Default()
 
+	configFileData, errConfig := os.ReadFile(filepath.Join(root, "bevaluate.yaml"))
+	if errConfig == nil {
+		errUnmarshal := yaml.Unmarshal(configFileData, &cfg)
+		exitOnError(errUnmarshal, "could not unmarshal config file", exitCodeConfig)
+	}
+
+	var err error
 	cmd := os.Args[1]
 
 	switch cmd {
@@ -38,16 +49,16 @@ func main() {
 
 		content := *changes
 		if *isFile {
-			data, err := os.ReadFile(*changes)
-			exitOnError(err, "could not read changes file", exitCodeIOError)
+			data, errRead := os.ReadFile(*changes)
+			exitOnError(errRead, "could not read changes file", exitCodeIOError)
 
 			content = string(data)
 		}
 
-		err = operations.EvaluateBuild(root, content)
+		err = operations.EvaluateBuild(root, content, cfg)
 	default:
 		fmt.Printf("unknown cmd: %q\n", cmd)
-		os.Exit(1)
+		os.Exit(exitCodeInvalidArgs)
 	}
 
 	exitOnError(err, "could not execute: "+cmd, exitCodeGeneralError)

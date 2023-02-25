@@ -44,7 +44,7 @@ func (r PackageReader) ReadRecursively(root, moduleName string) ([]PackageInfo, 
 
 	dirs := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if entry.IsDir() == false || r.config.IgnoredDirs.Contains(entry.Name()) {
+		if entry.IsDir() == false || r.config.IsIgnored(entry.Name()) {
 			continue
 		}
 
@@ -167,7 +167,7 @@ func (r PackageReader) processEntries(dirPath string, entries []models.DirEntry,
 	for _, entry := range entries {
 		entryPath := filepath.Join(dirPath, entry.Name())
 		if entry.IsDir() {
-			if r.config.IgnoredDirs.Contains(entryPath) == false {
+			if r.config.IsIgnored(entryPath) == false {
 				dirsStack.Push(entryPath)
 			}
 			continue

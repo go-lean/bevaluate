@@ -167,7 +167,7 @@ func TestPackageReader_ReadRecursively_NonEmptyIgnoredSubDir_ShouldBeEmpty(t *te
 
 	opener := NewFileOpener()
 	opener.MockAt("baba/serviceone/baba.go", fakeFile)
-	cfg := info.Config{IgnoredDirs: map[string]struct{}{"serviceone": {}}}
+	cfg := info.NewConfig(".*serviceone$")
 
 	r := info.NewPackageReader(dirReader, opener, cfg)
 
@@ -384,9 +384,7 @@ func TestPackageReader_ReadRecursively_InnerIgnoredSubDir_ShouldNotBeEmpty(t *te
 	opener.MockAt("baba/serviceone/inner/baba_test.go", NewFakeFile(`package inner_test)
 `))
 
-	cfg := info.Config{
-		IgnoredDirs: map[string]struct{}{"serviceone/inner": {}},
-	}
+	cfg := info.NewConfig("serviceone/inner$")
 	r := info.NewPackageReader(dirReader, opener, cfg)
 
 	packages, errRead := r.ReadRecursively("baba", testModuleName)
@@ -509,4 +507,46 @@ import named "github.com/baba/is/you/service/inner"
 	require.Len(t, packages[0].Dependencies, 2)
 	expected := []string{"plugins", "service/inner"}
 	require.ElementsMatch(t, expected, packages[0].Dependencies)
+}
+
+func TestPackageReader_ReadRecursively_IgnoringInnerSubDirs(t *testing.T) {
+	dirReader := NewDirReader()
+	dirReader.MockAt("baba", []models.DirEntry{
+		DirEntry{
+			name:  "service",
+			isDir: true,
+		},
+	})
+	dirReader.MockAt("baba/service", []models.DirEntry{
+		DirEntry{
+			name:  "mocks",
+			isDir: true,
+		},
+		DirEntry{
+			name: "server.go",
+		},
+	})
+	dirReader.MockAt("baba/service/mocks", []models.DirEntry{
+		DirEntry{
+			name: "baba.go",
+		},
+	})
+
+	opener := NewFileOpener()
+	opener.MockAt("baba/service/server.go", NewFakeFile(`
+package service
+`))
+	opener.MockAt("baba/service/mocks/baba.go", NewFakeFile(`
+package mocks
+
+import "github.com/baba/is/you/service"
+`))
+
+	r := info.NewPackageReader(dirReader, opener, info.NewConfig(".*/mocks$"))
+
+	packages, errRead := r.ReadRecursively("baba", testModuleName)
+
+	require.NoError(t, errRead)
+	require.Len(t, packages, 1)
+	require.Equal(t, "service", packages[0].Path)
 }

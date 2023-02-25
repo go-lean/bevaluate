@@ -11,7 +11,7 @@ import (
 var (
 	errKaboom      = errors.New("kaboom")
 	testModuleName = "github.com/baba/is/you"
-	emptyConfig    = info.Config{IgnoredDirs: map[string]struct{}{}}
+	emptyConfig    = info.Config{}
 )
 
 type (

@@ -2,12 +2,13 @@ package operations
 
 import (
 	"fmt"
+	"github.com/go-lean/bevaluate/config"
 	"github.com/go-lean/bevaluate/info"
 	"github.com/go-lean/bevaluate/storage"
 	"path/filepath"
 )
 
-func EvaluateBuild(root, changesContent string) error {
+func EvaluateBuild(root, changesContent string, cfg config.Config) error {
 	changes, errParse := info.ParseGitChanges(changesContent)
 	if errParse != nil {
 		return fmt.Errorf("could not parse changes: %w", errParse)
@@ -25,7 +26,7 @@ func EvaluateBuild(root, changesContent string) error {
 		return fmt.Errorf("could not read go module name: %w", errName)
 	}
 
-	packageReader := info.NewPackageReader(reader, opener, info.Config{})
+	packageReader := info.NewPackageReader(reader, opener, info.NewConfig(cfg.Packages.IgnoredDirs...))
 	packages, errRead := packageReader.ReadRecursively(root, moduleName)
 	if errRead != nil {
 		return fmt.Errorf("could not read packages: %w", errRead)
