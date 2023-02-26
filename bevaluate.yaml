@@ -1,2 +1,7 @@
 packages:
     ignoredDirs: [build$, vendor$, .*/mocks$]
+evaluations:
+    deploymentsDir: cmd/
+    specialCases:
+        retest: []
+        fullScale: [go.mod]

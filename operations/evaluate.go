@@ -3,6 +3,7 @@ package operations
 import (
 	"fmt"
 	"github.com/go-lean/bevaluate/config"
+	"github.com/go-lean/bevaluate/evaluate"
 	"github.com/go-lean/bevaluate/info"
 	"github.com/go-lean/bevaluate/storage"
 	"path/filepath"
@@ -49,5 +50,17 @@ func (o EvaluateBuildOperation) Run(root, changesContent string) error {
 		return nil
 	}
 
+	evalCfg := evaluate.NewConfig(
+		o.cfg.Evaluations.DeploymentsDir,
+		o.cfg.Evaluations.SpecialCases.Retest,
+		o.cfg.Evaluations.SpecialCases.FullScale)
+
+	evaluator := evaluate.NewBuildEvaluator(evalCfg)
+	result, errEvaluate := evaluator.Evaluate(packages, changes)
+	if errEvaluate != nil {
+		return fmt.Errorf("could not evaluate build: %w", errEvaluate)
+	}
+
+	fmt.Println(result)
 	return nil
 }
