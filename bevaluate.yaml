@@ -1,5 +1,2 @@
 packages:
-  ignoredDirs:
-    - ".*/mocks$"
-    - "build$"
-    - "vendor$"
+    ignoredDirs: [build$, vendor$, .*/mocks$]

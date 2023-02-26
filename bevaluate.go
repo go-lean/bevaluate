@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-lean/bevaluate/config"
 	"github.com/go-lean/bevaluate/operations"
+	"github.com/go-lean/bevaluate/storage"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -32,13 +33,15 @@ func main() {
 	exitOnError(errWD, "could not get working directory", exitCodeIOError)
 
 	cfg := config.Default()
+	cfgPath := filepath.Join(root, "bevaluate.yaml")
 
-	configFileData, errConfig := os.ReadFile(filepath.Join(root, "bevaluate.yaml"))
+	configFileData, errConfig := os.ReadFile(cfgPath)
 	if errConfig == nil {
 		errUnmarshal := yaml.Unmarshal(configFileData, &cfg)
 		exitOnError(errUnmarshal, "could not unmarshal config file", exitCodeConfig)
 	}
 
+	store := storage.Store{}
 	var err error
 	cmd := os.Args[1]
 
@@ -55,7 +58,11 @@ func main() {
 			content = string(data)
 		}
 
-		err = operations.EvaluateBuild(root, content, cfg)
+		operation := operations.NewEvaluateOperation(store, cfg)
+		err = operation.Run(root, content)
+	case "init":
+		initOperation := operations.NewInitOperation(store)
+		err = initOperation.Run(cfgPath)
 	default:
 		fmt.Printf("unknown cmd: %q\n", cmd)
 		os.Exit(exitCodeInvalidArgs)
