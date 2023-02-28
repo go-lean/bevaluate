@@ -7,17 +7,19 @@ type (
 	}
 
 	Packages struct {
-		IgnoredDirs []string `yaml:"ignoredDirs,flow"`
+		IgnoredDirs []string `yaml:"ignored_dirs,flow"`
 	}
 
 	Evaluations struct {
-		DeploymentsDir string       `yaml:"deploymentsDir"`
-		SpecialCases   SpecialCases `yaml:"specialCases"`
+		DeploymentsDir string       `yaml:"deployments_dir"`
+		RetestOut      string       `yaml:"retest_out"`
+		RedeployOut    string       `yaml:"redeploy_out"`
+		SpecialCases   SpecialCases `yaml:"special_cases"`
 	}
 
 	SpecialCases struct {
-		Retest    []string `yaml:"retest,flow"`
-		FullScale []string `yaml:"fullScale,flow"`
+		RetestTriggers    []string `yaml:"retest_triggers,flow"`
+		FullScaleTriggers []string `yaml:"full_scale_triggers,flow"`
 	}
 )
 
@@ -32,8 +34,10 @@ func Default() Config {
 		},
 		Evaluations: Evaluations{
 			DeploymentsDir: "cmd/",
+			RetestOut:      "bevaluate/retest.out",
+			RedeployOut:    "bevaluate/redeploy.out",
 			SpecialCases: SpecialCases{
-				FullScale: []string{"go.mod"},
+				FullScaleTriggers: []string{"go.mod$"},
 			},
 		},
 	}

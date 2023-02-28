@@ -2,11 +2,14 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 )
 
 var ErrNotExisting = errors.New("path does not exist")
+
+var NewLine = fmt.Sprintln()
 
 type (
 	FileReadOpener interface {

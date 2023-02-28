@@ -20,10 +20,14 @@ type (
 	}
 )
 
+const (
+	defaultDependencyLevels = 5
+)
+
 var (
-	ErrUnsupportedScenario = errors.New("could not evaluate scenario")
-	ErrSpecialRetestCase   = errors.New("could not continue change evaluation because of a special retest case")
-	ErrSpecialRedeployCase = errors.New("could not continue change evaluation because of a special redeploy case")
+	ErrUnsupportedScenario  = errors.New("could not evaluate scenario")
+	ErrSpecialRetestCase    = errors.New("could not continue change evaluation because of a special retest case")
+	ErrSpecialFullScaleCase = errors.New("could not continue change evaluation because of a special full scale case")
 )
 
 func NewBuildEvaluator(config Config) BuildEvaluator {
@@ -53,7 +57,7 @@ func (e BuildEvaluator) Evaluate(packages []info.PackageInfo, changes []info.Cha
 		}
 
 		if errors.Is(errEvaluate, ErrUnsupportedScenario) ||
-			errors.Is(errEvaluate, ErrSpecialRedeployCase) {
+			errors.Is(errEvaluate, ErrSpecialFullScaleCase) {
 			issueFullScaleRetest(graph)
 			e.issueFullScaleRedeploy(graph)
 
@@ -102,7 +106,7 @@ func (e BuildEvaluator) handleMissingPackage(pkgPath string, change info.ChangeI
 		return fmt.Errorf("missing package at: %q", pkgPath)
 	}
 
-	parent, ok := findParent(pkgPath, graph)
+	parent, ok := findParentRecursively(pkgPath, graph)
 	if ok == false {
 		return ErrUnsupportedScenario
 	}
@@ -114,7 +118,7 @@ func (e BuildEvaluator) handleMissingPackage(pkgPath string, change info.ChangeI
 func (e BuildEvaluator) markPackageDirtyRecursively(pkg *DependencyNode) {
 	pkgStack := stack.New[*DependencyNode]()
 	pkgStack.Push(pkg)
-	visited := make(map[string]struct{}, 5)
+	visited := make(map[string]struct{}, defaultDependencyLevels)
 
 	for pkgStack.Size() > 0 {
 		p := pkgStack.Pop()
@@ -139,7 +143,7 @@ func (e BuildEvaluator) markPackageDirtyRecursively(pkg *DependencyNode) {
 	}
 }
 
-func findParent(pkgPath string, graph DependencyGraph) (*DependencyNode, bool) {
+func findParentRecursively(pkgPath string, graph DependencyGraph) (*DependencyNode, bool) {
 	path := filepath.Dir(pkgPath)
 
 	for path != "." {
@@ -200,20 +204,20 @@ func (e BuildEvaluator) canBeDeployed(node *DependencyNode) bool {
 }
 
 func (e BuildEvaluator) evaluateSpecialCase(change info.ChangeInfo) error {
-	for _, retestCase := range e.cfg.SpecialCases.RetestAll {
-		if retestCase.MatchString(change.Path) == false {
+	for _, trigger := range e.cfg.SpecialCases.RetestTriggers {
+		if trigger.MatchString(change.Path) == false {
 			continue
 		}
 
 		return ErrSpecialRetestCase
 	}
 
-	for _, fullScaleCase := range e.cfg.SpecialCases.RedeployAll {
-		if fullScaleCase.MatchString(change.Path) == false {
+	for _, trigger := range e.cfg.SpecialCases.FullScaleTriggers {
+		if trigger.MatchString(change.Path) == false {
 			continue
 		}
 
-		return ErrSpecialRedeployCase
+		return ErrSpecialFullScaleCase
 	}
 
 	return nil

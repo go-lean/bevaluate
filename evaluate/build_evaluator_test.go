@@ -287,7 +287,7 @@ func TestBuildEvaluator_Evaluate_ChangedFileNotMatchingSpecialRetestCase_Nothing
 
 	cfg := testCfg()
 	exp := regexp.MustCompile("Jenkinsfile.*")
-	cfg.SpecialCases.RetestAll = append(cfg.SpecialCases.RetestAll, exp)
+	cfg.SpecialCases.RetestTriggers = append(cfg.SpecialCases.RetestTriggers, exp)
 	eval := evaluate.NewBuildEvaluator(cfg)
 
 	result, errEval := eval.Evaluate(packages, changes)
@@ -361,7 +361,7 @@ func TestBuildEvaluator_Evaluate_ChangedFileNotMatchingSpecialRedeployCase_Nothi
 
 	cfg := testCfg()
 	exp := regexp.MustCompile("Jenkinsfile.*")
-	cfg.SpecialCases.RedeployAll = append(cfg.SpecialCases.RedeployAll, exp)
+	cfg.SpecialCases.FullScaleTriggers = append(cfg.SpecialCases.FullScaleTriggers, exp)
 	eval := evaluate.NewBuildEvaluator(cfg)
 
 	result, errEval := eval.Evaluate(packages, changes)
@@ -417,7 +417,7 @@ func TestBuildEvaluator_Evaluate_SharedDependencies_ShouldPropagateCorrectly(t *
 
 	cfg := testCfg()
 	exp := regexp.MustCompile("Jenkinsfile.*")
-	cfg.SpecialCases.RedeployAll = append(cfg.SpecialCases.RedeployAll, exp)
+	cfg.SpecialCases.FullScaleTriggers = append(cfg.SpecialCases.FullScaleTriggers, exp)
 	eval := evaluate.NewBuildEvaluator(cfg)
 
 	result, errEval := eval.Evaluate(packages, changes)

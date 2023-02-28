@@ -1,7 +1,9 @@
 packages:
-    ignoredDirs: [build$, vendor$, .*/mocks$]
+    ignored_dirs: [build$, vendor$, .*/mocks$]
 evaluations:
-    deploymentsDir: cmd/
-    specialCases:
-        retest: []
-        fullScale: [go.mod]
+    deployments_dir: cmd/
+    retest_out: bevaluate/retest.out
+    redeploy_out: bevaluate/redeploy.out
+    special_cases:
+        retest_triggers: []
+        full_scale_triggers: [go.mod$]

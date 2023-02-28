@@ -9,8 +9,8 @@ type (
 	}
 
 	SpecialCases struct {
-		RetestAll   []*regexp.Regexp
-		RedeployAll []*regexp.Regexp
+		RetestTriggers    []*regexp.Regexp
+		FullScaleTriggers []*regexp.Regexp
 	}
 )
 
@@ -39,8 +39,8 @@ func NewConfig(deploymentsDir string, specialRetestCases, specialRedeployCases [
 	return Config{
 		DeploymentsDir: deploymentsDir,
 		SpecialCases: SpecialCases{
-			RetestAll:   retest,
-			RedeployAll: redeploy,
+			RetestTriggers:    retest,
+			FullScaleTriggers: redeploy,
 		},
 	}
 }

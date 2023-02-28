@@ -7,6 +7,7 @@ import (
 	"github.com/go-lean/bevaluate/info"
 	"github.com/go-lean/bevaluate/storage"
 	"path/filepath"
+	"strings"
 )
 
 type (
@@ -52,8 +53,8 @@ func (o EvaluateBuildOperation) Run(root, changesContent string) error {
 
 	evalCfg := evaluate.NewConfig(
 		o.cfg.Evaluations.DeploymentsDir,
-		o.cfg.Evaluations.SpecialCases.Retest,
-		o.cfg.Evaluations.SpecialCases.FullScale)
+		o.cfg.Evaluations.SpecialCases.RetestTriggers,
+		o.cfg.Evaluations.SpecialCases.FullScaleTriggers)
 
 	evaluator := evaluate.NewBuildEvaluator(evalCfg)
 	result, errEvaluate := evaluator.Evaluate(packages, changes)
@@ -61,6 +62,23 @@ func (o EvaluateBuildOperation) Run(root, changesContent string) error {
 		return fmt.Errorf("could not evaluate build: %w", errEvaluate)
 	}
 
-	fmt.Println(result)
+	if errWrite := o.writeResult(result); errWrite != nil {
+		return fmt.Errorf("could not write result: %w", errWrite)
+	}
+
+	return nil
+}
+
+func (o EvaluateBuildOperation) writeResult(result evaluate.Evaluation) error {
+	retestContent := strings.Join(result.Retest, storage.NewLine)
+	if errWrite := storage.CreateFileWithText(o.cfg.Evaluations.RetestOut, retestContent, o.store.FileOpener); errWrite != nil {
+		return fmt.Errorf("could not write retest result: %w", errWrite)
+	}
+
+	redeployContent := strings.Join(result.Redeploy, storage.NewLine)
+	if errWrite := storage.CreateFileWithText(o.cfg.Evaluations.RedeployOut, redeployContent, o.store.FileOpener); errWrite != nil {
+		return fmt.Errorf("could not write redeploy result: %w", errWrite)
+	}
+
 	return nil
 }
