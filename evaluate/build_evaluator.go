@@ -11,7 +11,7 @@ import (
 
 type (
 	BuildEvaluator struct {
-		cfg Config
+		config Config
 	}
 
 	Evaluation struct {
@@ -31,7 +31,7 @@ var (
 )
 
 func NewBuildEvaluator(config Config) BuildEvaluator {
-	return BuildEvaluator{cfg: config}
+	return BuildEvaluator{config: config}
 }
 
 func (e BuildEvaluator) Evaluate(packages []info.PackageInfo, changes []info.ChangeInfo) (Evaluation, error) {
@@ -200,11 +200,11 @@ func (e BuildEvaluator) issueFullScaleRedeploy(g DependencyGraph) {
 }
 
 func (e BuildEvaluator) canBeDeployed(node *DependencyNode) bool {
-	return strings.HasPrefix(node.Path, e.cfg.DeploymentsDir)
+	return strings.HasPrefix(node.Path, e.config.DeploymentsDir)
 }
 
 func (e BuildEvaluator) evaluateSpecialCase(change info.ChangeInfo) error {
-	for _, trigger := range e.cfg.SpecialCases.RetestTriggers {
+	for _, trigger := range e.config.SpecialCases.RetestTriggers {
 		if trigger.MatchString(change.Path) == false {
 			continue
 		}
@@ -212,7 +212,7 @@ func (e BuildEvaluator) evaluateSpecialCase(change info.ChangeInfo) error {
 		return ErrSpecialRetestCase
 	}
 
-	for _, trigger := range e.cfg.SpecialCases.FullScaleTriggers {
+	for _, trigger := range e.config.SpecialCases.FullScaleTriggers {
 		if trigger.MatchString(change.Path) == false {
 			continue
 		}
