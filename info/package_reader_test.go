@@ -535,11 +535,13 @@ func TestPackageReader_ReadRecursively_IgnoringInnerSubDirs(t *testing.T) {
 	opener := NewFileOpener()
 	opener.MockAt("baba/service/server.go", NewFakeFile(`
 package service
+
+import "github.com/baba/is/you/service/mocks"
 `))
 	opener.MockAt("baba/service/mocks/baba.go", NewFakeFile(`
 package mocks
 
-import "github.com/baba/is/you/service"
+import "github.com/baba/is/you/other"
 `))
 
 	r := info.NewPackageReader(dirReader, opener, info.NewConfig(".*/mocks$"))
@@ -549,4 +551,5 @@ import "github.com/baba/is/you/service"
 	require.NoError(t, errRead)
 	require.Len(t, packages, 1)
 	require.Equal(t, "service", packages[0].Path)
+	require.Empty(t, packages[0].Dependencies)
 }

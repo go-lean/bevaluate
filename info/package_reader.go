@@ -146,7 +146,7 @@ func (r PackageReader) readPackage(root, dir, moduleName string, sourceFiles []s
 			}
 
 			dependency, _ := filepath.Rel(moduleName, impPath)
-			if dependency == dir {
+			if dependency == dir || r.config.IsIgnored(dependency) {
 				continue
 			}
 
